@@ -224,7 +224,21 @@ func replaceVariables(query string) string {
 }
 
 func parseQuery(query string, metrics map[string]struct{}) error {
-	expr, err := parser.ParseExpr(replaceVariables(query))
+  query = replaceVariables(query)
+
+	// replace variable, e.g. metric{label=${value}}
+	re = regexp.MustCompile(`\${[a-zA-Z0-9_]+}`)
+	query = re.ReplaceAllString(query, "variable")
+
+	// replace variable, e.g. metric{label=${value:format}}
+	re = regexp.MustCompile(`\${[a-zA-Z0-9_]+:[a-zA-Z0-9]+}`)
+	query = re.ReplaceAllString(query, "variable")
+
+	// replace variable, e.g. metric{label=$value}
+	re = regexp.MustCompile(`\$[a-zA-Z0-9_]+`)
+	query = re.ReplaceAllString(query, "variable")
+
+	expr, err := parser.ParseExpr(query)
 	if err != nil {
 		return err
 	}
