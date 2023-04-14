@@ -28,6 +28,8 @@ var (
 	validMetricName              = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
 	variableRangeQueryRangeRegex = regexp.MustCompile(`\[\$?\w+?]`)
 	variableSubqueryRangeRegex   = regexp.MustCompile(`\[\$?\w+:\$?\w+?]`)
+	var1Regexp     							 = regexp.MustCompile(`\${[a-zA-Z0-9_]+(:[a-zA-Z0-9]+)?}`)
+	var2Regexp     							 = regexp.MustCompile(`\$[a-zA-Z0-9_]+`)
 	variableReplacer             = strings.NewReplacer(
 		"$__interval", "5m",
 		"$interval", "5m",
@@ -220,25 +222,15 @@ func replaceVariables(query string) string {
 	query = variableReplacer.Replace(query)
 	query = variableRangeQueryRangeRegex.ReplaceAllLiteralString(query, `[5m]`)
 	query = variableSubqueryRangeRegex.ReplaceAllLiteralString(query, `[5m:1m]`)
+	// replace variable, e.g. metric{label=${value}} or metric{label=${value:format}}
+	query = var1Regexp.ReplaceAllLiteralString(query, "variable")
+	// replace variable, e.g. metric{label=$value}
+	query = var2Regexp.ReplaceAllLiteralString(query, "variable")
 	return query
 }
 
 func parseQuery(query string, metrics map[string]struct{}) error {
-  query = replaceVariables(query)
-
-	// replace variable, e.g. metric{label=${value}}
-	re = regexp.MustCompile(`\${[a-zA-Z0-9_]+}`)
-	query = re.ReplaceAllString(query, "variable")
-
-	// replace variable, e.g. metric{label=${value:format}}
-	re = regexp.MustCompile(`\${[a-zA-Z0-9_]+:[a-zA-Z0-9]+}`)
-	query = re.ReplaceAllString(query, "variable")
-
-	// replace variable, e.g. metric{label=$value}
-	re = regexp.MustCompile(`\$[a-zA-Z0-9_]+`)
-	query = re.ReplaceAllString(query, "variable")
-
-	expr, err := parser.ParseExpr(query)
+	expr, err := parser.ParseExpr(replaceVariables(query))
 	if err != nil {
 		return err
 	}
