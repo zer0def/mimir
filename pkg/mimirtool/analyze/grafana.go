@@ -28,8 +28,10 @@ var (
 	validMetricName              = regexp.MustCompile(`^[a-zA-Z_:][a-zA-Z0-9_:]*$`)
 	variableRangeQueryRangeRegex = regexp.MustCompile(`\[\$?\w+?]`)
 	variableSubqueryRangeRegex   = regexp.MustCompile(`\[\$?\w+:\$?\w+?]`)
-	var1Regexp     							 = regexp.MustCompile(`\${[a-zA-Z0-9_]+(:[a-zA-Z0-9]+)?}`)
-	var2Regexp     							 = regexp.MustCompile(`\$[a-zA-Z0-9_]+`)
+	var1LabelRegexp              = regexp.MustCompile(`=\${[a-zA-Z0-9_]+(:[a-zA-Z0-9]+)?}`)
+	var2LabelRegexp              = regexp.MustCompile(`=\$[a-zA-Z0-9_]+`)
+	var1MetricRegexp             = regexp.MustCompile(`\${[a-zA-Z0-9_]+(:[a-zA-Z0-9]+)?}`)
+	var2MetricRegexp             = regexp.MustCompile(`\$[a-zA-Z0-9_]+`)
 	variableReplacer             = strings.NewReplacer(
 		"$__interval", "5m",
 		"$interval", "5m",
@@ -222,10 +224,14 @@ func replaceVariables(query string) string {
 	query = variableReplacer.Replace(query)
 	query = variableRangeQueryRangeRegex.ReplaceAllLiteralString(query, `[5m]`)
 	query = variableSubqueryRangeRegex.ReplaceAllLiteralString(query, `[5m:1m]`)
-	// replace variable, e.g. metric{label=${value}} or metric{label=${value:format}}
-	query = var1Regexp.ReplaceAllLiteralString(query, "variable")
-	// replace variable, e.g. metric{label=$value}
-	query = var2Regexp.ReplaceAllLiteralString(query, "variable")
+	// replace label variable, e.g. metric{label=${value}} or metric{label=${value:format}}
+	query = var1LabelRegexp.ReplaceAllString(query, `="variable"`)
+	// replace label variable, e.g. metric{label=$value}
+	query = var2LabelRegexp.ReplaceAllString(query, `="variable"`)
+	// replace metric variable, e.g. ${metric}{} or ${metric:format}{}
+	query = var1MetricRegexp.ReplaceAllString(query, `variable`)
+	// replace metric variable, e.g. $metric{}
+	query = var2MetricRegexp.ReplaceAllString(query, `variable`)
 	return query
 }
 
